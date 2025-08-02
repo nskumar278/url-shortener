@@ -83,21 +83,19 @@ class EnvironmentConfig {
         return numValue;
     }
 
-    private getEnvVarAsBoolean(key: string, defaultValue?: boolean): boolean {
-        const value = process.env[key];
-        if (value === undefined) {
-            if (defaultValue !== undefined) {
-                return defaultValue;
-            }
-            throw new Error(`Environment variable ${key} is required but not set`);
-        }
-        return value.toLowerCase() === 'true';
-    }
+    // private getEnvVarAsBoolean(key: string, defaultValue?: boolean): boolean {
+    //     const value = process.env[key];
+    //     if (value === undefined) {
+    //         if (defaultValue !== undefined) {
+    //             return defaultValue;
+    //         }
+    //         throw new Error(`Environment variable ${key} is required but not set`);
+    //     }
+    //     return value.toLowerCase() === 'true';
+    // }
 
     private validateProductionConfig(): void {
         if (this.NODE_ENV === 'production') {
-            const requiredProdVars: string[] = [];
-
             // Add validation for production-critical variables
             if (this.CORS_ORIGIN === '*') {
                 console.warn('⚠️  WARNING: CORS_ORIGIN is set to "*" in production. This is not recommended for security.');
