@@ -19,7 +19,7 @@
     "exactOptionalPropertyTypes": true,
     "baseUrl": ".",
     "paths": {
-      "@config/*": ["src/config/*"],
+      "@configs/*": ["src/configs/*"],
       "@controllers/*": ["src/controllers/*"],
       "@interfaces/*": ["src/interfaces/*"],
       "@middlewares/*": ["src/middlewares/*"],

@@ -1,11 +1,17 @@
 import express from 'express';
 import cors from 'cors';
+import morgan from 'morgan';
+import logger from '@configs/logger';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json( {limit: '10kb' }));
-app.use(express.urlencoded({ limit: '10kb', extended: true }));
+
+app.use(morgan('tiny', { 
+  stream: { write: (message) => logger.info(message.trim()) } 
+}));
+
 
 app.get('/', (_req, res) => {
   res.status(200).json({
