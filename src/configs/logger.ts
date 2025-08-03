@@ -18,7 +18,7 @@ const developmentFormat = combine(
 );
 
 const logger = createLogger({
-    level: isProduction ? "warn" : "debug",
+    level: isProduction ? "info" : "debug",
     format: isProduction ? productionFormat : developmentFormat,
     transports: [
         new transports.Console({

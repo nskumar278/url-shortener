@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import logger from '@configs/logger';
 import env from '@configs/env';
+import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
 
 const app = express();
 
@@ -39,25 +40,10 @@ app.get('/', (_req, res) => {
   });
 });
 
-app.use((_req, res, _next) => {
-  res.status(404).json({
-    message: 'Not Found',
-    timestamp: new Date().toISOString(),
-  });
-});
+// 404 Not Found handler
+app.use(notFoundHandler);
 
-app.use((err: any, _req: any, res: any, _next: any) => {
-  logger.error('Unhandled error:', err);
-  
-  // Don't leak error details in production
-  const message = env.isProduction() ? 'Internal Server Error' : err.message;
-  const stack = env.isProduction() ? undefined : err.stack;
-  
-  res.status(err.status || 500).json({
-    message,
-    timestamp: new Date().toISOString(),
-    ...(stack && { stack }),
-  });
-});
+// Error handling middleware
+app.use(errorHandler);
 
 export default app;
