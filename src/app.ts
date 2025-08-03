@@ -5,6 +5,7 @@ import logger from '@configs/logger';
 import env from '@configs/env';
 import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
 import indexRouter from '@routes/index.route';
+import v1IndexRouter from '@routes/v1/index.route';
 
 const app = express();
 
@@ -22,9 +23,9 @@ app.use(morgan(env.isProduction() ? 'combined' : 'dev', {
   stream: { write: (message) => logger.info(message.trim()) },
 }));
 
-
 // API Routes
 app.use('/', indexRouter);
+app.use('/api/v1', v1IndexRouter);
 
 // 404 Not Found handler
 app.use(notFoundHandler);

@@ -5,7 +5,7 @@ const router = Router();
 
 router.get('/', indexController.index);
 
-// Health check endpoint
-router.get('/health', indexController.healthCheck);
+// API Documentation
+router.get('/docs', indexController.getDocs);
 
 export default router;
