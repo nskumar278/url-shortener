@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import logger from '@configs/logger';
 import env from '@configs/env';
 import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
+import indexRouter from '@routes/index.route';
 
 const app = express();
 
@@ -17,28 +18,13 @@ app.use(cors({
 app.use(express.json({ limit: env.REQUEST_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: env.REQUEST_LIMIT }));
 
-const morganFormat = env.isProduction() ? 'combined' : 'dev';
-app.use(morgan(morganFormat, { 
+app.use(morgan(env.isProduction() ? 'combined' : 'dev', {
   stream: { write: (message) => logger.info(message.trim()) },
 }));
 
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV,
-    uptime: process.uptime(),
-  });
-});
 
-app.get('/', (_req, res) => {
-  res.status(200).json({
-    message: 'Welcome to the URL Shortener API',
-    version: '1.0.0',
-    environment: env.NODE_ENV,
-  });
-});
+// API Routes
+app.use('/', indexRouter);
 
 // 404 Not Found handler
 app.use(notFoundHandler);

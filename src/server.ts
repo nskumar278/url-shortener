@@ -14,7 +14,7 @@ const config: ServerConfig = {
 
 // Graceful shutdown handling
 const gracefulShutdown = (signal: string) => {
-    logger.info(`Received ${signal}. Starting graceful shutdown...`);
+    logger.warn(`Received ${signal}. Starting graceful shutdown...`);
 
     server.close((err?: Error) => {
         if (err) {
