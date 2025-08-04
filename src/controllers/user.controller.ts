@@ -21,7 +21,7 @@ class UserController {
         res.status(201).json(response);
     });
 
-    public static getAllUsers = asyncErrorHandler(async (req: Request, res: Response): Promise<void> => {
+    public static getAllUsers = asyncErrorHandler(async (_req: Request, res: Response): Promise<void> => {
         logger.info('Get all users endpoint accessed');
 
         const users = await userService.getAllUsers();

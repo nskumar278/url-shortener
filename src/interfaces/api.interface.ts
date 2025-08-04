@@ -6,3 +6,11 @@ export interface ApiResponse<T = any> {
   uptime?: number;
   timestamp: string;
 }
+
+export interface ApiVersionInfo {
+  version: string;
+  deprecated?: boolean;
+  deprecatedSince?: string;
+  sunsetDate?: string;
+  replacement?: string;
+}
