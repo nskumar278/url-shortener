@@ -14,3 +14,6 @@ logs/
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Vscode cache and settings
+.vscode

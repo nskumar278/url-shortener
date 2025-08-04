@@ -6,6 +6,7 @@ import env from '@configs/env';
 import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
 import indexRouter from '@routes/index.route';
 import v1IndexRouter from '@routes/v1/index.route';
+import userRouter from '@routes/v1/user.route'; // Dummy user route as template
 
 const app = express();
 
@@ -26,6 +27,9 @@ app.use(morgan(env.isProduction() ? 'combined' : 'dev', {
 // API Routes
 app.use('/', indexRouter);
 app.use('/api/v1', v1IndexRouter);
+
+// Dummy user route as template
+app.use('/api/v1/users', userRouter);
 
 // 404 Not Found handler
 app.use(notFoundHandler);
