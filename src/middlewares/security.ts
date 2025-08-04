@@ -1,6 +1,8 @@
 import helmet from 'helmet';
 import compression from 'compression';
+import cors from 'cors';
 import { Request, Response } from 'express';
+import env  from '@configs/env';
 
 // Security headers middleware for REST API endpoints
 export const apiSecurityMiddleware = helmet({
@@ -56,4 +58,12 @@ export const compressionMiddleware = compression({
   },
   level: 6,
   threshold: 1024,
+});
+
+// CORS middleware
+export const corsMiddleware = cors({
+  origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 });
