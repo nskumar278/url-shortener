@@ -6,10 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && tsc-alias",
-    "build:prod": "tsc --sourceMap false --removeComments true && tsc-alias",
+    "build:prod": "npm run docs:build && tsc --sourceMap false --removeComments true && tsc-alias",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
-    "dev:prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts"
+    "dev:prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
+    "docs:generate": "node scripts/generate-docs.js",
+    "docs:serve": "npm run docs:generate && swagger-ui-serve docs/openapi.json",
+    "docs:build": "npm run docs:generate && npx @redocly/cli build-docs docs/openapi.json --output docs/api-docs.html"
   },
   "repository": {
     "type": "git",
@@ -28,13 +31,21 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.0.2",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.3",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.1.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "dotenv": "^17.2.1",
+    "js-yaml": "^4.1.0",
+    "redoc-express": "^2.1.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "swagger-ui-serve": "^0.0.4",
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",

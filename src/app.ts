@@ -9,6 +9,7 @@ import { securityMiddleware, compressionMiddleware, corsMiddleware } from '@midd
 import indexRouter from '@routes/index.route';
 import v1IndexRouter from '@routes/v1/index.route';
 import userRouter from '@routes/v1/user.route';
+import { setupSwagger } from '@configs/swagger';
 
 const app = express();
 
@@ -32,6 +33,9 @@ app.use(morgan(env.isProduction() ? 'combined' : 'dev', {
 
 // Versioning middleware
 app.use(versioningMiddleware);
+
+// Setup Swagger documentation
+setupSwagger(app);
 
 // API Routes
 app.use('/', indexRouter);
