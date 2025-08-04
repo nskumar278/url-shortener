@@ -4,7 +4,7 @@ import env from '@configs/env';
 import { ApiResponse } from '@interfaces/api.interface';
 
 
-export const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
+export const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction): void => {
   logger.error('Unhandled error:', err);
 
   const message = env.isProduction() ? 'Internal Server Error' : err.message;
