@@ -5,11 +5,18 @@ import logger from '@configs/logger';
 import env from '@configs/env';
 import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
 import { versioningMiddleware } from '@middlewares/versioning';
+import { securityMiddleware, compressionMiddleware } from '@middlewares/security';
 import indexRouter from '@routes/index.route';
 import v1IndexRouter from '@routes/v1/index.route';
 import userRouter from '@routes/v1/user.route'; // Dummy user route as template
 
 const app = express();
+
+// Security middleware (should be first)
+app.use(securityMiddleware);
+
+// Compression middleware
+app.use(compressionMiddleware);
 
 app.use(cors({
   origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
