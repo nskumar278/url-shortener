@@ -23,7 +23,7 @@ const swaggerDefinition = {
     info: {
         title: 'URL Shortener API',
         version: '1.0.0',
-        description: 'A production-grade URL shortener service with comprehensive API documentation',
+        description: 'A URL shortener service',
         contact: {
             name: 'API Support',
             url: 'https://github.com/nskumar278/url-shortener',
@@ -315,8 +315,8 @@ const swaggerDefinition = {
             description: 'API documentation endpoints'
         },
         {
-            name: 'Users',
-            description: 'User management operations'
+            name: 'URL',
+            description: 'URL management operations'
         }
     ]
 };
