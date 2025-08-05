@@ -1,0 +1,64 @@
+services:
+  url-shortener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: url-shortener:latest
+    container_name: url-shortener-app
+    restart: unless-stopped
+  
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - app-logs:/app/logs
+    
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: ${LOG_DIR:-/app/logs}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      REQUEST_LIMIT: ${REQUEST_LIMIT:-100mb}
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Network
+    networks:
+      - url-shortener-network
+
+# ----------------------------------------
+# Networks
+# ----------------------------------------
+networks:
+  url-shortener-network:
+    driver: bridge
+    name: url-shortener-network
+
+# ----------------------------------------
+# Volumes (for future use with databases)
+# ----------------------------------------
+volumes:
+  app-logs:
+    driver: local

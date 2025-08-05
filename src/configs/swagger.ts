@@ -1,8 +1,21 @@
-import swaggerJSDoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
 import { Application } from 'express';
-import redoc from 'redoc-express';
 import env from './env';
+
+// Conditional imports - only load in development
+let swaggerJSDoc: any;
+let swaggerUi: any;
+let redoc: any;
+
+// Only import swagger packages in non-production environments
+if (!env.isProduction()) {
+  try {
+    swaggerJSDoc = require('swagger-jsdoc');
+    swaggerUi = require('swagger-ui-express');
+    redoc = require('redoc-express');
+  } catch (error) {
+    console.warn('⚠️  Swagger packages not found. Install devDependencies for API documentation.');
+  }
+}
 
 // Swagger definition
 const swaggerDefinition = {
@@ -314,8 +327,11 @@ const swaggerOptions = {
     apis: ['./src/routes/**/*.ts', './src/controllers/**/*.ts']
 };
 
-// Generate OpenAPI specification
-const swaggerSpec = swaggerJSDoc(swaggerOptions);
+// Generate OpenAPI specification (only in development)
+let swaggerSpec: any = null;
+if (!env.isProduction() && swaggerJSDoc) {
+  swaggerSpec = swaggerJSDoc(swaggerOptions);
+}
 
 // Setup function to integrate Swagger with Express app
 export const setupSwagger = (app: Application): void => {
@@ -342,13 +358,36 @@ export const setupSwagger = (app: Application): void => {
     };
 
     // Disable Swagger UI endpoints in production
-    app.get('/docs/swagger', swaggerDisabledHandler);
-    app.use('/docs/swagger*', swaggerDisabledHandler);
+    app.use('/docs/swagger', swaggerDisabledHandler);
 
     console.log('📚 Production API Documentation:');
     console.log('  🎨 /docs - Static ReDoc HTML (pre-generated, fast)');
     console.log('  🚫 /docs/swagger - Swagger UI (DISABLED for security)');
 
+    return;
+  }
+
+  // Check if swagger packages are available
+  if (!swaggerJSDoc || !swaggerUi || !redoc || !swaggerSpec) {
+    console.log('⚠️  Swagger packages not available. API documentation disabled.');
+    
+    // Provide fallback endpoints
+    const fallbackHandler = (_req: any, res: any) => {
+      res.status(503).json({
+        success: false,
+        message: 'API documentation is not available',
+        error: {
+          code: 'DOCS_UNAVAILABLE',
+          details: ['Swagger packages not installed. Run: npm install --save-dev swagger-jsdoc swagger-ui-express redoc-express']
+        },
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    app.get('/docs', fallbackHandler);
+    app.get('/docs.json', fallbackHandler);
+    app.use('/docs/swagger', fallbackHandler);
+    
     return;
   }
 
@@ -375,4 +414,4 @@ export const setupSwagger = (app: Application): void => {
   console.log('  📄 /docs.json - OpenAPI specification');
 };
 
-export default swaggerSpec;
+export default swaggerSpec || {};
