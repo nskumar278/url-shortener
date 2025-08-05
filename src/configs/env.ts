@@ -35,6 +35,11 @@ class EnvironmentConfig {
     public readonly LOG_DIR: string;
     public readonly CORS_ORIGIN: string;
     public readonly REQUEST_LIMIT: string;
+    public readonly DB_USERNAME: string;
+    public readonly DB_PASSWORD: string;
+    public readonly DB_HOST: string;
+    public readonly DB_NAME: string;
+    public readonly DB_DIALECT: string;
 
     constructor() {
         // Server Configuration
@@ -45,6 +50,13 @@ class EnvironmentConfig {
         // Logging Configuration
         this.LOG_LEVEL = this.getEnvVar('LOG_LEVEL', 'info');
         this.LOG_DIR = this.getEnvVar('LOG_DIR', 'logs');
+        
+        // Database Configuration
+        this.DB_USERNAME = this.getEnvVar('DB_USERNAME');
+        this.DB_PASSWORD = this.getEnvVar('DB_PASSWORD');
+        this.DB_HOST = this.getEnvVar('DB_HOST');
+        this.DB_NAME = this.getEnvVar('DB_NAME');
+        this.DB_DIALECT = this.getEnvVar('DB_DIALECT');
 
         // CORS Configuration
         this.CORS_ORIGIN = this.getEnvVar('CORS_ORIGIN', '*');
