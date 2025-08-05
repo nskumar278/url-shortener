@@ -6,10 +6,10 @@ import env from '@configs/env';
 import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
 import { versioningMiddleware } from '@middlewares/versioning';
 import { securityMiddleware, compressionMiddleware, corsMiddleware } from '@middlewares/security';
+import { setupSwagger } from '@configs/swagger';
 import indexRouter from '@routes/index.route';
 import v1IndexRouter from '@routes/v1/index.route';
-import userRouter from '@routes/v1/user.route';
-import { setupSwagger } from '@configs/swagger';
+import urlRouter from '@routes/v1/url.route';
 
 const app = express();
 
@@ -41,8 +41,7 @@ setupSwagger(app);
 app.use('/', indexRouter);
 app.use('/api/v1', v1IndexRouter);
 
-// Dummy user route as template
-app.use('/api/v1/users', userRouter);
+app.use('/api/v1/urls', urlRouter);
 
 // 404 Not Found handler
 app.use(notFoundHandler);
