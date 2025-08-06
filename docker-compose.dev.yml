@@ -1,0 +1,106 @@
+# ========================================
+# Development Docker Compose
+# Use: docker compose -f docker-compose.dev.yml up
+# ========================================
+
+services:
+  migrate-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: url-shortener-migrate-dev
+    environment:
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db_dev
+      DB_HOST: mysql-dev
+      DB_DIALECT: mysql
+    depends_on:
+      mysql-dev:
+        condition: service_healthy
+    networks:
+      - url-shortener-network-dev
+    profiles:
+      - migration
+    restart: "no"
+    
+  url-shortener-dev:
+    build:
+      target: builder
+    image: url-shortener:dev
+    container_name: url-shortener-dev
+    # environment: # Use .env file for environment variables
+    depends_on:
+      mysql-dev:
+        condition: service_healthy
+
+    networks:
+      - url-shortener-network-dev
+
+    # Enable hot reloading in development
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - node_modules:/app/node_modules
+     
+    # Override command for development
+    command: ["npm", "run", "dev"]
+    
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugger port
+    
+
+    deploy:
+      resources: {} 
+
+
+  mysql-dev:
+    image: mysql:8.0
+    container_name: url-shortener-db-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: url_shortener_db_dev
+      MYSQL_USER: url_shortener_user
+      MYSQL_PASSWORD: pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - url-shortener-network-dev
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  # Redis Cache
+  redis-dev:
+    image: redis:7-alpine
+    container_name: url-shortener-redis-dev
+    command: redis-server --requirepass redispass123 --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/var/lib/redis
+    restart: unless-stopped
+    deploy:
+      resources: {}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispass123", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - url-shortener-network-dev
+
+networks:
+  url-shortener-network-dev:
+    driver: bridge
+
+volumes:
+  node_modules:
+  db-data:
+  redis-data:

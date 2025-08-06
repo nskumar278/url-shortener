@@ -31,10 +31,24 @@ class EnvironmentConfig {
     public readonly NODE_ENV: string;
     public readonly PORT: number;
     public readonly HOST: string;
+
     public readonly LOG_LEVEL: string;
     public readonly LOG_DIR: string;
+
     public readonly CORS_ORIGIN: string;
     public readonly REQUEST_LIMIT: string;
+    
+    public readonly DB_USERNAME: string;
+    public readonly DB_PASSWORD: string;
+    public readonly DB_HOST: string;
+    public readonly DB_NAME: string;
+    public readonly DB_DIALECT: string;
+
+    public readonly REDIS_HOST: string;
+    public readonly REDIS_PORT: number;
+    public readonly REDIS_PASSWORD: string;
+    public readonly REDIS_DB: number;
+    public readonly CACHE_TTL: number;
 
     constructor() {
         // Server Configuration
@@ -45,6 +59,20 @@ class EnvironmentConfig {
         // Logging Configuration
         this.LOG_LEVEL = this.getEnvVar('LOG_LEVEL', 'info');
         this.LOG_DIR = this.getEnvVar('LOG_DIR', 'logs');
+        
+        // Database Configuration
+        this.DB_USERNAME = this.getEnvVar('DB_USERNAME');
+        this.DB_PASSWORD = this.getEnvVar('DB_PASSWORD');
+        this.DB_HOST = this.getEnvVar('DB_HOST');
+        this.DB_NAME = this.getEnvVar('DB_NAME');
+        this.DB_DIALECT = this.getEnvVar('DB_DIALECT');
+
+        // Redis Configuration
+        this.REDIS_HOST = this.getEnvVar('REDIS_HOST');
+        this.REDIS_PORT = this.getEnvVarAsNumber('REDIS_PORT');
+        this.REDIS_PASSWORD = this.getEnvVar('REDIS_PASSWORD');
+        this.REDIS_DB = this.getEnvVarAsNumber('REDIS_DB');
+        this.CACHE_TTL = this.getEnvVarAsNumber('CACHE_TTL', 3600);
 
         // CORS Configuration
         this.CORS_ORIGIN = this.getEnvVar('CORS_ORIGIN', '*');

@@ -22,7 +22,7 @@ class UrlController {
     });
 
     public static redirectToOriginalUrl = asyncErrorHandler(async (req: Request, res: Response): Promise<void> => {
-        const shortId = req.params.shortId;
+        const shortId = req.params.shortUrlId;
         logger.info('Redirect to original URL endpoint accessed', { shortId });
 
         const originalUrl = await UrlService.getOriginalUrl(shortId);
@@ -41,11 +41,11 @@ class UrlController {
     });
 
     public static getUrlStats = asyncErrorHandler(async (req: Request, res: Response): Promise<void> => {
-        const shortUrl = req.params.shortUrl;
-        logger.info('Get URL stats endpoint accessed', { shortUrl });
+        const shortUrlId = req.params.shortUrlId;
+        logger.info('Get URL stats endpoint accessed', { shortUrlId });
 
-        const stats = await UrlService.getUrlStats(shortUrl);
-        
+        const stats = await UrlService.getUrlStats(shortUrlId);
+
         if (!stats) {
             const response: ApiResponse = {
                 success: false,
