@@ -50,6 +50,9 @@ class EnvironmentConfig {
     public readonly REDIS_DB: number;
     public readonly CACHE_TTL: number;
 
+    public readonly METRICS_ENABLED: boolean;
+    public readonly METRICS_PORT: number;
+
     constructor() {
         // Server Configuration
         this.NODE_ENV = this.getEnvVar('NODE_ENV', 'development');
@@ -73,6 +76,10 @@ class EnvironmentConfig {
         this.REDIS_PASSWORD = this.getEnvVar('REDIS_PASSWORD');
         this.REDIS_DB = this.getEnvVarAsNumber('REDIS_DB');
         this.CACHE_TTL = this.getEnvVarAsNumber('CACHE_TTL', 3600);
+
+        // Metrics Configuration
+        this.METRICS_ENABLED = this.getEnvVarAsBoolean('METRICS_ENABLED', false);
+        this.METRICS_PORT = this.getEnvVarAsNumber('METRICS_PORT');
 
         // CORS Configuration
         this.CORS_ORIGIN = this.getEnvVar('CORS_ORIGIN', '*');
@@ -111,16 +118,16 @@ class EnvironmentConfig {
         return numValue;
     }
 
-    // private getEnvVarAsBoolean(key: string, defaultValue?: boolean): boolean {
-    //     const value = process.env[key];
-    //     if (value === undefined) {
-    //         if (defaultValue !== undefined) {
-    //             return defaultValue;
-    //         }
-    //         throw new Error(`Environment variable ${key} is required but not set`);
-    //     }
-    //     return value.toLowerCase() === 'true';
-    // }
+    private getEnvVarAsBoolean(key: string, defaultValue?: boolean): boolean {
+        const value = process.env[key];
+        if (value === undefined) {
+            if (defaultValue !== undefined) {
+                return defaultValue;
+            }
+            throw new Error(`Environment variable ${key} is required but not set`);
+        }
+        return value.toLowerCase() === 'true';
+    }
 
     private validateProductionConfig(): void {
         if (this.NODE_ENV === 'production') {
