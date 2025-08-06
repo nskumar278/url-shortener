@@ -2,12 +2,12 @@ import { DataTypes, Model, Sequelize } from 'sequelize';
 
 export default (sequelize: Sequelize, dataTypes: typeof DataTypes) => {
   class Url extends Model {
-    public id!: number;
-    public originalUrl!: string;
-    public shortUrlId!: string;
-    public clickCount!: number;
-    public createdAt!: Date;
-    public updatedAt!: Date;
+    declare id: number;
+    declare originalUrl: string;
+    declare shortUrlId: string;
+    declare clickCount: number;
+    declare createdAt: Date;
+    declare updatedAt: Date;
   }
 
   Url.init(
