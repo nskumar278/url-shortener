@@ -1,0 +1,63 @@
+# ========================================
+# Development Docker Compose Override
+# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ========================================
+
+version: '3.8'
+
+services:
+  url-shortener:
+    build:
+      target: builder
+    image: url-shortener:dev
+    container_name: url-shortener-dev
+    
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      HOST: 0.0.0.0
+      LOG_LEVEL: debug
+      LOG_DIR: /app/logs
+      CORS_ORIGIN: "*"
+      REQUEST_LIMIT: 100mb
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db
+      DB_HOST: mysql
+      DB_DIALECT: mysql
+    
+    # Enable hot reloading in development
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - node_modules:/app/node_modules
+     
+    # Override command for development
+    command: ["npm", "run", "dev"]
+    
+    # Expose additional ports for development tools
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugger port
+    
+    # Remove resource limits for development
+    deploy:
+      resources: {} 
+  mysql:
+    image: mysql:8.0
+    container_name: url-shortener-db-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: url_shortener_db
+      MYSQL_USER: url_shortener_user
+      MYSQL_PASSWORD: pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+
+volumes:
+  node_modules:
+  db-data:

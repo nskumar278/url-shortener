@@ -22,6 +22,11 @@ services:
       LOG_DIR: ${LOG_DIR:-/app/logs}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       REQUEST_LIMIT: ${REQUEST_LIMIT:-100mb}
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db
+      DB_HOST: mysql
+      DB_DIALECT: mysql
     
     deploy:
       resources:
@@ -47,6 +52,22 @@ services:
     # Network
     networks:
       - url-shortener-network
+  
+  mysql:
+    image: mysql:8.0
+    container_name: url-shortener-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: url_shortener_db
+      MYSQL_USER: url_shortener_user
+      MYSQL_PASSWORD: pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - url-shortener-network
 
 # ----------------------------------------
 # Networks
@@ -61,4 +82,6 @@ networks:
 # ----------------------------------------
 volumes:
   app-logs:
+    driver: local
+  db-data:
     driver: local

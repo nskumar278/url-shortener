@@ -10,6 +10,8 @@ router.get('/', IndexController.index);
 router.get('/favicon.ico', (_req, res) => {
     res.status(204).end();
 });
+// Health check endpoint
+router.get('/health', HealthController.healthCheck);
 
 /**
  * @swagger
@@ -40,8 +42,5 @@ router.get(
     urlValidations.redirectToOriginalUrl,
     UrlController.redirectToOriginalUrl
 )
-
-// Health check endpoint
-router.get('/health', HealthController.healthCheck);
 
 export default router;

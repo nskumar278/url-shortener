@@ -2,7 +2,7 @@ import { celebrate, Joi, Segments } from 'celebrate';
 import { commonValidations } from './common.validation';
 
 const urlSpecificValidations = {
-    shortUrlId: Joi.string().alphanum().length(6)
+    shortUrlId: Joi.string().alphanum().length(8)
 };
 
 export const urlValidations = {

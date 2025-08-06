@@ -22,7 +22,7 @@ class UrlController {
     });
 
     public static redirectToOriginalUrl = asyncErrorHandler(async (req: Request, res: Response): Promise<void> => {
-        const shortId = req.params.shortId;
+        const shortId = req.params.shortUrlId;
         logger.info('Redirect to original URL endpoint accessed', { shortId });
 
         const originalUrl = await UrlService.getOriginalUrl(shortId);

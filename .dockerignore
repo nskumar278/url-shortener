@@ -2,14 +2,6 @@
 # .dockerignore - Exclude unnecessary files from Docker build
 # ========================================
 
-# Development files
-.env
-.env.local
-.env.development
-.env.test
-.env.production
-.env.docker
-
 # Dependencies
 node_modules
 npm-debug.log*

@@ -1,14 +1,14 @@
 import fs from 'fs';
 import path from 'path';
-import { Sequelize, DataTypes, Model, ModelStatic } from 'sequelize';
-import process from 'process';
+import { Sequelize, DataTypes, Options } from 'sequelize';
+import config from '@configs/config';
 
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
-const config = require(__dirname + '/../config/config.ts')[env];
+const dbConfig = config[env as keyof typeof config];
 
 interface DB {
-  [key: string]: ModelStatic<Model> | Sequelize | typeof Sequelize;
+  [key: string]: any;
   sequelize: Sequelize;
   Sequelize: typeof Sequelize;
 }
@@ -16,10 +16,13 @@ interface DB {
 const db: DB = {} as DB;
 
 const sequelize = new Sequelize(
-  config.database, 
-  config.username, 
-  config.password, 
-  config
+  dbConfig.database, 
+  dbConfig.username, 
+  dbConfig.password || undefined, 
+  {
+    host: dbConfig.host,
+    dialect: dbConfig.dialect,
+  } as Options
 );
 
 fs
