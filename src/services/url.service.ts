@@ -1,5 +1,6 @@
 import logger from "@configs/logger";
 import db from "@models/db";
+import env from "@configs/env";
 import { createShortId } from '@utils/shortId';
 
 class UrlService {
@@ -14,12 +15,12 @@ class UrlService {
             // Check if URL already exists
             const existingUrl = await db.Url.findOne({
                 where: { originalUrl },
-                attributes: ['shortUrlId', 'originalUrl', 'createdAt']
+                attributes: ['shortUrlId', 'originalUrl', 'createdAt', 'updatedAt']
             });
 
             if (existingUrl) {
                 logger.info('Short URL already exists', { existingUrl });
-                return existingUrl;
+                return UrlService.parseResponseData(existingUrl);
             }
 
             const shortUrlId = await UrlService.createUniqueShortId();
@@ -35,7 +36,7 @@ class UrlService {
                 originalUrl: newUrl.originalUrl,
             });
 
-            return newUrl;
+            return UrlService.parseResponseData(newUrl);
 
         } catch (error) {
             logger.error('Error creating short URL', { error, urlData });
@@ -71,7 +72,7 @@ class UrlService {
             logger.info('Getting stats for short URL', { shortUrl });
             const urlRecord = await db.Url.findOne({
                 where: { shortUrlId: shortUrl },
-                attributes: ['id', 'originalUrl', 'clickCount', 'createdAt', 'updatedAt']
+                attributes: ['id', 'shortUrlId', 'originalUrl', 'clickCount', 'createdAt', 'updatedAt']
             });
 
             if (!urlRecord) {
@@ -79,11 +80,7 @@ class UrlService {
                 return null;
             }
 
-            return {
-                clicks: urlRecord.clickCount,
-                createdAt: urlRecord.createdAt.toISOString(),
-                updatedAt: urlRecord.updatedAt.toISOString()
-            };
+            return UrlService.parseResponseData(urlRecord);
         } catch (error) {
             logger.error('Error getting URL stats', { error, shortUrl });
             throw error;
@@ -112,6 +109,19 @@ class UrlService {
         }
 
         throw new Error('Failed to generate a unique short URL ID after multiple attempts');
+    }
+
+    private static parseResponseData(data?: any): {} {
+        if (!data) return {};
+
+        return {
+            originalUrl: data.originalUrl,
+            shortUrlId: data.shortUrlId,
+            shortUrl: `${env.HOST}/${data.shortUrlId}`,
+            clickCount: data.clickCount,
+            createdAt: data.createdAt.toISOString(),
+            lastAccessedAt: data.updatedAt.toISOString()
+        };
     }
 }
 
