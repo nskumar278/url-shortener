@@ -78,6 +78,11 @@ class UrlService {
                 return null;
             }
 
+            cacheService.cacheShortUrl(shortId, urlRecord.originalUrl)
+                .catch(err => {
+                    logger.error('Error caching original URL after DB fetch', { error: err, shortId });
+                });
+
             UrlService.incrementClickCount(shortId).catch(err => {
                 logger.error('Error incrementing click count', { error: err, shortId });
             });
