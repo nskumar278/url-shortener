@@ -12,8 +12,9 @@ const productionFormat = combine(
 
 const developmentFormat = combine(
     timestamp(),
-    printf(({ timestamp, level, message }) => {
-        return `${timestamp} [${level}]: ${message}`;
+    printf(({ timestamp, level, message, ...meta }) => {
+        const metaString = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+        return `${timestamp} [${level}]: ${message}${metaString}`;
     })
 );
 

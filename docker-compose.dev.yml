@@ -29,21 +29,7 @@ services:
       target: builder
     image: url-shortener:dev
     container_name: url-shortener-dev
-    
-    environment:
-      NODE_ENV: development
-      PORT: 3000
-      HOST: 0.0.0.0
-      LOG_LEVEL: debug
-      LOG_DIR: /app/logs
-      CORS_ORIGIN: "*"
-      REQUEST_LIMIT: 100mb
-      DB_USERNAME: url_shortener_user
-      DB_PASSWORD: pass
-      DB_NAME: url_shortener_db_dev
-      DB_HOST: mysql-dev
-      DB_DIALECT: mysql
-    
+    # environment: # Use .env file for environment variables
     depends_on:
       mysql-dev:
         condition: service_healthy
@@ -92,6 +78,24 @@ services:
       interval: 10s
       start_period: 40s
 
+  # Redis Cache
+  redis-dev:
+    image: redis:7-alpine
+    container_name: url-shortener-redis-dev
+    command: redis-server --requirepass redispass123 --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/var/lib/redis
+    restart: unless-stopped
+    deploy:
+      resources: {}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispass123", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - url-shortener-network-dev
+
 networks:
   url-shortener-network-dev:
     driver: bridge
@@ -99,3 +103,4 @@ networks:
 volumes:
   node_modules:
   db-data:
+  redis-data:

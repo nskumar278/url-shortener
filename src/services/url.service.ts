@@ -2,6 +2,7 @@ import logger from "@configs/logger";
 import db from "@models/db";
 import env from "@configs/env";
 import { createShortId } from '@utils/shortId';
+import cacheService from "@services/cache.service";
 
 class UrlService {
     private static MAX_SHORT_ID_ATTEMPTS = 3;
@@ -20,6 +21,10 @@ class UrlService {
 
             if (existingUrl) {
                 logger.info('Short URL already exists', { existingUrl });
+                cacheService.cacheShortUrl(existingUrl.shortUrlId, existingUrl.originalUrl)
+                    .catch(err => {
+                        logger.error('Error caching existing short URL', { error: err, existingUrl });
+                    });
                 return UrlService.parseResponseData(existingUrl);
             }
 
@@ -36,6 +41,11 @@ class UrlService {
                 originalUrl: newUrl.originalUrl,
             });
 
+            cacheService.cacheShortUrl(newUrl.shortUrlId, newUrl.originalUrl)
+                .catch(err => {
+                    logger.error('Error caching new short URL', { error: err, newUrl });
+                });
+
             return UrlService.parseResponseData(newUrl);
 
         } catch (error) {
@@ -47,9 +57,20 @@ class UrlService {
     public static async getOriginalUrl(shortId: string): Promise<string | null> {
         try {
             logger.info('Retrieving original URL for short ID', { shortId });
+
+            const cachedUrl = await cacheService.getShortUrl(shortId);
+
+            if (cachedUrl) {
+                UrlService.incrementClickCount(shortId)
+                    .catch(err => {
+                        logger.error('Error incrementing click count for cached URL', { error: err, shortId });
+                    });
+                return cachedUrl;
+            }
+
             const urlRecord = await db.Url.findOne({
                 where: { shortUrlId: shortId },
-                attributes: ['id', 'originalUrl', 'clickCount']
+                attributes: ['originalUrl', 'clickCount']
             });
 
             if (!urlRecord) {
@@ -57,8 +78,9 @@ class UrlService {
                 return null;
             }
 
-            // Increment click count on the same instance
-            await urlRecord.increment('clickCount');
+            UrlService.incrementClickCount(shortId).catch(err => {
+                logger.error('Error incrementing click count', { error: err, shortId });
+            });
 
             return urlRecord.originalUrl;
         } catch (error) {
@@ -109,6 +131,16 @@ class UrlService {
         }
 
         throw new Error('Failed to generate a unique short URL ID after multiple attempts');
+    }
+
+    private static async incrementClickCount(shortUrlId: string): Promise<void> {
+        try {
+            logger.info('Incrementing click count for short URL', { shortUrlId });
+            await db.Url.increment('clickCount', { where: { shortUrlId } });
+        } catch (error) {
+            logger.error('Error incrementing click count', { error, shortUrlId });
+            throw error;
+        }
     }
 
     private static parseResponseData(data?: any): {} {
