@@ -1,4 +1,24 @@
 services:
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: url-shortener-migrate
+    environment:
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db
+      DB_HOST: mysql
+      DB_DIALECT: mysql
+    depends_on:
+      - mysql
+    networks:
+      - url-shortener-network
+    profiles:
+      - migration
+    restart: "no"
+
   url-shortener:
     build:
       context: .

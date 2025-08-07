@@ -4,31 +4,33 @@
 # ========================================
 
 services:
-  migrate-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.migrate
-    container_name: url-shortener-migrate-dev
-    environment:
-      DB_USERNAME: url_shortener_user
-      DB_PASSWORD: pass
-      DB_NAME: url_shortener_db_dev
-      DB_HOST: mysql-dev
-      DB_DIALECT: mysql
+  nginx-dev:
+    image: nginx:alpine
+    container_name: url-shortener-nginx-dev
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      mysql-dev:
-        condition: service_healthy
+      - url-shortener-dev-app1
+      - url-shortener-dev-app2
+      - url-shortener-dev-app3
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - url-shortener-network-dev
-    profiles:
-      - migration
-    restart: "no"
-    
-  url-shortener-dev:
+
+  url-shortener-dev-app1: &url-shortener-dev-app-template
     build:
       target: builder
     image: url-shortener:dev
-    container_name: url-shortener-dev
+    container_name: url-shortener-dev-app1
     # environment: # Use .env file for environment variables
     depends_on:
       mysql-dev:
@@ -43,16 +45,31 @@ services:
       - ./package.json:/app/package.json:ro
       - ./tsconfig.json:/app/tsconfig.json:ro
       - node_modules:/app/node_modules
-     
+
     # Override command for development
     command: >
       sh -c "npm install && npm run dev"
     ports:
       - "3000:3000"
-      - "9229:9229"  # Node.js debugger port
+      - "9229:9229" # Node.js debugger port
     deploy:
-      resources: {} 
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
 
+  url-shortener-dev-app2:
+    <<: *url-shortener-dev-app-template
+    container_name: url-shortener-dev-app2
+    ports: [] # No external ports needed, accessed via nginx
+
+  url-shortener-dev-app3:
+    <<: *url-shortener-dev-app-template
+    container_name: url-shortener-dev-app3
+    ports: [] # No external ports needed, accessed via nginx
 
   mysql-dev:
     image: mysql:8.0
@@ -67,10 +84,18 @@ services:
       - "3306:3306"
     volumes:
       - db-data:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
     networks:
       - url-shortener-network-dev
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot" ]
       timeout: 20s
       retries: 10
       interval: 10s
@@ -87,15 +112,20 @@ services:
       - redis-data:/var/lib/redis
     restart: unless-stopped
     deploy:
-      resources: {}
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redispass123", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "redispass123", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
       - url-shortener-network-dev
-  
     # Prometheus for monitoring (optional)
   prometheus-dev:
     image: prom/prometheus:latest
@@ -116,7 +146,9 @@ services:
     networks:
       - url-shortener-network-dev
     depends_on:
-      - url-shortener-dev
+      - url-shortener-dev-app1
+      - url-shortener-dev-app2
+      - url-shortener-dev-app3
 
   # Grafana for dashboards (optional)
   grafana-dev:
@@ -132,9 +164,31 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus-dev
-      - url-shortener-dev
+      - url-shortener-dev-app1
+      - url-shortener-dev-app2
+      - url-shortener-dev-app3
     networks:
       - url-shortener-network-dev
+
+  migrate-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: url-shortener-migrate-dev
+    environment:
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db_dev
+      DB_HOST: mysql-dev
+      DB_DIALECT: mysql
+    depends_on:
+      mysql-dev:
+        condition: service_healthy
+    networks:
+      - url-shortener-network-dev
+    profiles:
+      - migration
+    restart: "no"
 
 networks:
   url-shortener-network-dev:
