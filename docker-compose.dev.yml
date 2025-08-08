@@ -84,6 +84,7 @@ services:
       - "3306:3306"
     volumes:
       - db-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
     deploy:
       resources:
         limits:
@@ -189,6 +190,78 @@ services:
     profiles:
       - migration
     restart: "no"
+
+  # Locust Load Testing
+  locust-master:
+    image: locustio/locust
+    container_name: url-shortener-locust-master
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./load-testing:/mnt/locust
+    command: -f /mnt/locust/locustfile.py --master -H http://nginx-dev
+    networks:
+      - url-shortener-network-dev
+    profiles:
+      - load-testing
+    depends_on:
+      - nginx-dev
+
+  locust-worker:
+    image: locustio/locust
+    container_name: url-shortener-locust-worker
+    volumes:
+      - ./load-testing:/mnt/locust
+    command: -f /mnt/locust/locustfile.py --worker --master-host locust-master
+    networks:
+      - url-shortener-network-dev
+    profiles:
+      - load-testing
+    depends_on:
+      - locust-master
+    deploy:
+      replicas: 2
+
+  # Metrics Exporters
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:0.10.0
+    container_name: url-shortener-nginx-exporter
+    ports:
+      - "9113:9113"
+    command:
+      - '-nginx.scrape-uri=http://nginx-dev:80/nginx-status'
+    networks:
+      - url-shortener-network-dev
+    depends_on:
+      - nginx-dev
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: url-shortener-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis://:redispass123@redis-dev:6379
+    networks:
+      - url-shortener-network-dev
+    depends_on:
+      - redis-dev
+    restart: unless-stopped
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: url-shortener-mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      DATA_SOURCE_NAME: "url_shortener_user:pass@tcp(mysql-dev:3306)/url_shortener_db_dev"
+    networks:
+      - url-shortener-network-dev
+    depends_on:
+      mysql-dev:
+        condition: service_healthy
+    restart: unless-stopped
 
 networks:
   url-shortener-network-dev:

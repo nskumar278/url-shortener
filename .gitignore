@@ -4,6 +4,9 @@
 
 # Dependencies
 node_modules
+load-testing/venv
+load-testing/__pycache__
+load-testing/reports
 
 # Build output
 dist
