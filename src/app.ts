@@ -6,6 +6,7 @@ import env from '@configs/env';
 import { errorHandler, notFoundHandler } from '@middlewares/errorHandler';
 import { versioningMiddleware } from '@middlewares/versioning';
 import { securityMiddleware, compressionMiddleware, corsMiddleware } from '@middlewares/security';
+import { metricsMiddleware, metricsEndpoint } from '@services/metrics.service';
 import { setupSwagger } from '@configs/swagger';
 import indexRouter from '@routes/index.route';
 import urlRouter from '@routes/v1/url.route';
@@ -30,6 +31,8 @@ app.use(morgan(env.isProduction() ? 'combined' : 'dev', {
   stream: { write: (message) => logger.info(message.trim()) },
 }));
 
+app.use(metricsMiddleware);
+
 // Versioning middleware
 app.use(versioningMiddleware);
 
@@ -37,6 +40,7 @@ app.use(versioningMiddleware);
 setupSwagger(app);
 
 // API Routes
+app.get('/metrics', metricsEndpoint);
 app.use('/', indexRouter);
 app.use('/api/v1/urls', urlRouter);
 
