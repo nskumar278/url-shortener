@@ -11,12 +11,11 @@ module.exports = {
       },
       original_url: {
         type: Sequelize.STRING,
-        allowNull: false
+        allowNull: false,
       },
       short_url_id: {
         type: Sequelize.STRING,
         allowNull: false,
-        unique: true
       },
       click_count: {
         type: Sequelize.INTEGER,
