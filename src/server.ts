@@ -3,6 +3,7 @@ import app from './app';
 import { ServerConfig } from '@interfaces/server.interface';
 import env from '@configs/env';
 import logger from '@configs/logger';
+import ClickSyncService from '@services/clickSync.service';
 
 const server = createServer(app);
 
@@ -15,6 +16,9 @@ const config: ServerConfig = {
 // Graceful shutdown handling
 const gracefulShutdown = (signal: string) => {
     logger.warn(`Received ${signal}. Starting graceful shutdown...`);
+
+    // Stop click sync service
+    ClickSyncService.getInstance().stop();
 
     server.close((err?: Error) => {
         if (err) {
@@ -80,6 +84,20 @@ server.on('listening', (): void => {
     logger.info(`🚀 Server is running at http://${config.host}:${config.port}`);
     logger.info(`📦 Environment: ${config.nodeEnv}`);
     logger.info(`📝 Log Level: ${env.getLogLevel()}`);
+    
+    // Start click sync service only if enabled (prevents multiple instances from syncing)
+    if (env.ENABLE_CLICK_SYNC) {
+        const clickSyncService = ClickSyncService.getInstance();
+        clickSyncService.start();
+        
+        logger.info('✅ Click sync service started (PRIMARY INSTANCE)', {
+            intervalSeconds: env.CLICK_SYNC_INTERVAL_SECONDS,
+            batchSize: env.CLICK_SYNC_BATCH_SIZE,
+            retryAttempts: env.CLICK_SYNC_RETRY_ATTEMPTS
+        });
+    } else {
+        logger.info('⏭️  Click sync service disabled (SECONDARY INSTANCE)');
+    }
 });
 
 server.listen(config.port, config.host);

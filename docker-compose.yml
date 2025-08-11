@@ -54,6 +54,12 @@ services:
       CACHE_TTL: 3600
       METRICS_ENABLED: true
       METRICS_PORT: 9090
+      # Click Sync Configuration
+      CLICK_SYNC_INTERVAL_SECONDS: ${CLICK_SYNC_INTERVAL_SECONDS:-30}
+      CLICK_SYNC_BATCH_SIZE: ${CLICK_SYNC_BATCH_SIZE:-100}
+      CLICK_SYNC_RETRY_ATTEMPTS: ${CLICK_SYNC_RETRY_ATTEMPTS:-3}
+      CLICK_SYNC_RETRY_DELAY_MS: ${CLICK_SYNC_RETRY_DELAY_MS:-1000}
+      ENABLE_CLICK_SYNC: true  # Only app1 handles click sync
     
     deploy:
       resources:
@@ -90,11 +96,63 @@ services:
   url-shortener-app2:
     <<: *app-template
     container_name: url-shortener-app2
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: ${LOG_DIR:-/app/logs}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      REQUEST_LIMIT: ${REQUEST_LIMIT:-100mb}
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db
+      DB_HOST: mysql
+      DB_DIALECT: mysql
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redispass123
+      REDIS_DB: 0
+      CACHE_TTL: 3600
+      METRICS_ENABLED: true
+      METRICS_PORT: 9090
+      # Click Sync Configuration - DISABLED for secondary instances
+      CLICK_SYNC_INTERVAL_SECONDS: ${CLICK_SYNC_INTERVAL_SECONDS:-30}
+      CLICK_SYNC_BATCH_SIZE: ${CLICK_SYNC_BATCH_SIZE:-100}
+      CLICK_SYNC_RETRY_ATTEMPTS: ${CLICK_SYNC_RETRY_ATTEMPTS:-3}
+      CLICK_SYNC_RETRY_DELAY_MS: ${CLICK_SYNC_RETRY_DELAY_MS:-1000}
+      ENABLE_CLICK_SYNC: false
 
   # App Container 3
   url-shortener-app3:
     <<: *app-template
     container_name: url-shortener-app3
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: ${LOG_DIR:-/app/logs}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      REQUEST_LIMIT: ${REQUEST_LIMIT:-100mb}
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db
+      DB_HOST: mysql
+      DB_DIALECT: mysql
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redispass123
+      REDIS_DB: 0
+      CACHE_TTL: 3600
+      METRICS_ENABLED: true
+      METRICS_PORT: 9090
+      # Click Sync Configuration - DISABLED for secondary instances
+      CLICK_SYNC_INTERVAL_SECONDS: ${CLICK_SYNC_INTERVAL_SECONDS:-30}
+      CLICK_SYNC_BATCH_SIZE: ${CLICK_SYNC_BATCH_SIZE:-100}
+      CLICK_SYNC_RETRY_ATTEMPTS: ${CLICK_SYNC_RETRY_ATTEMPTS:-3}
+      CLICK_SYNC_RETRY_DELAY_MS: ${CLICK_SYNC_RETRY_DELAY_MS:-1000}
+      ENABLE_CLICK_SYNC: false
 
   # MySQL Database
   mysql:

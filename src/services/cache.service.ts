@@ -244,6 +244,76 @@ class CacheService {
         const cacheKey = `clicks:${shortUrlId}`;
         return this.increment(cacheKey);
     }
+
+    // Get all click count keys for batch processing
+    public async getClickCountKeys(): Promise<string[]> {
+        try {
+            if (!this.isConnected) {
+                logger.warn('Redis not connected, cannot get click count keys');
+                return [];
+            }
+            const keys = await this.redisClient.keys('clicks:*');
+            logger.debug('Found click count keys', { count: keys.length });
+            return keys;
+        } catch (error) {
+            logger.error('Error getting click count keys from Redis:', error);
+            return [];
+        }
+    }
+
+    // Get click count for a specific URL
+    public async getUrlClickCount(shortUrlId: string): Promise<number> {
+        try {
+            const cacheKey = `clicks:${shortUrlId}`;
+            const count = await this.get(cacheKey);
+            return count ? parseInt(count, 10) : 0;
+        } catch (error) {
+            logger.error('Error getting URL click count from Redis:', error);
+            return 0;
+        }
+    }
+
+    // Batch get multiple click counts
+    public async getBatchClickCounts(keys: string[]): Promise<Record<string, number>> {
+        try {
+            if (!this.isConnected || keys.length === 0) {
+                return {};
+            }
+            
+            const pipeline = this.redisClient.pipeline();
+            keys.forEach(key => pipeline.get(key));
+            
+            const results = await pipeline.exec();
+            const clickCounts: Record<string, number> = {};
+            
+            results?.forEach((result, index) => {
+                if (result && result[1]) {
+                    const shortUrlId = keys[index].replace('clicks:', '');
+                    clickCounts[shortUrlId] = parseInt(result[1] as string, 10);
+                }
+            });
+            
+            logger.debug('Batch click counts retrieved', { count: Object.keys(clickCounts).length });
+            return clickCounts;
+        } catch (error) {
+            logger.error('Error getting batch click counts from Redis:', error);
+            return {};
+        }
+    }
+
+    // Delete processed click counts
+    public async deleteClickCounts(keys: string[]): Promise<void> {
+        try {
+            if (!this.isConnected || keys.length === 0) {
+                return;
+            }
+            
+            await this.redisClient.del(...keys);
+            logger.debug('Deleted processed click counts', { count: keys.length });
+        } catch (error) {
+            logger.error('Error deleting click counts from Redis:', error);
+        }
+    }
 }
 
 export default CacheService.getInstance();

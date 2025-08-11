@@ -70,10 +70,13 @@ class UrlService {
             if (cachedUrl) {
                 const duration = (Date.now() - startTime) / 1000;
                 MetricsService.recordRedirect('cache', duration);
-                UrlService.incrementClickCount(shortId)
+                
+                // Fast Redis-based click counting (non-blocking)
+                cacheService.incrementUrlClicks(shortId)
                     .catch(err => {
-                        logger.error('Error incrementing click count for cached URL', { error: err, shortId });
+                        logger.error('Error incrementing click count in Redis for cached URL', { error: err, shortId });
                     });
+                
                 return cachedUrl;
             }
 
@@ -97,9 +100,11 @@ class UrlService {
                     logger.error('Error caching original URL after DB fetch', { error: err, shortId });
                 });
 
-            UrlService.incrementClickCount(shortId).catch(err => {
-                logger.error('Error incrementing click count', { error: err, shortId });
-            });
+            // Fast Redis-based click counting (non-blocking)
+            cacheService.incrementUrlClicks(shortId)
+                .catch(err => {
+                    logger.error('Error incrementing click count in Redis', { error: err, shortId });
+                });
 
             return urlRecord.originalUrl;
         } catch (error) {
@@ -121,7 +126,23 @@ class UrlService {
                 return null;
             }
 
-            return UrlService.parseResponseData(urlRecord);
+            // Get pending click count from Redis
+            const pendingClicks = await cacheService.getUrlClickCount(shortUrl);
+            
+            // Combine database and Redis click counts for accurate stats
+            const totalClickCount = urlRecord.clickCount + pendingClicks;
+            
+            logger.debug('Click count calculation', {
+                shortUrl,
+                dbClickCount: urlRecord.clickCount,
+                pendingClicks,
+                totalClickCount
+            });
+
+            return UrlService.parseResponseData({
+                ...urlRecord.toJSON(),
+                clickCount: totalClickCount
+            });
         } catch (error) {
             logger.error('Error getting URL stats', { error, shortUrl });
             throw error;
@@ -150,16 +171,6 @@ class UrlService {
         }
 
         throw new Error('Failed to generate a unique short URL ID after multiple attempts');
-    }
-
-    private static async incrementClickCount(shortUrlId: string): Promise<void> {
-        try {
-            logger.info('Incrementing click count for short URL', { shortUrlId });
-            await db.Url.increment('clickCount', { where: { shortUrlId } });
-        } catch (error) {
-            logger.error('Error incrementing click count', { error, shortUrlId });
-            throw error;
-        }
     }
 
     private static parseResponseData(data?: any): {} {

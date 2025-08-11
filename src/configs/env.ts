@@ -53,6 +53,13 @@ class EnvironmentConfig {
     public readonly METRICS_ENABLED: boolean;
     public readonly METRICS_PORT: number;
 
+    // Click Sync Configuration
+    public readonly CLICK_SYNC_INTERVAL_SECONDS: number;
+    public readonly CLICK_SYNC_BATCH_SIZE: number;
+    public readonly CLICK_SYNC_RETRY_ATTEMPTS: number;
+    public readonly CLICK_SYNC_RETRY_DELAY_MS: number;
+    public readonly ENABLE_CLICK_SYNC: boolean;
+
     constructor() {
         // Server Configuration
         this.NODE_ENV = this.getEnvVar('NODE_ENV', 'development');
@@ -80,6 +87,13 @@ class EnvironmentConfig {
         // Metrics Configuration
         this.METRICS_ENABLED = this.getEnvVarAsBoolean('METRICS_ENABLED', false);
         this.METRICS_PORT = this.getEnvVarAsNumber('METRICS_PORT');
+
+        // Click Sync Configuration
+        this.CLICK_SYNC_INTERVAL_SECONDS = this.getEnvVarAsNumber('CLICK_SYNC_INTERVAL_SECONDS', 30);
+        this.CLICK_SYNC_BATCH_SIZE = this.getEnvVarAsNumber('CLICK_SYNC_BATCH_SIZE', 100);
+        this.CLICK_SYNC_RETRY_ATTEMPTS = this.getEnvVarAsNumber('CLICK_SYNC_RETRY_ATTEMPTS', 3);
+        this.CLICK_SYNC_RETRY_DELAY_MS = this.getEnvVarAsNumber('CLICK_SYNC_RETRY_DELAY_MS', 1000);
+        this.ENABLE_CLICK_SYNC = this.getEnvVarAsBoolean('ENABLE_CLICK_SYNC', true);
 
         // CORS Configuration
         this.CORS_ORIGIN = this.getEnvVar('CORS_ORIGIN', '*');
