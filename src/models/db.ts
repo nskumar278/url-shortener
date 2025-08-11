@@ -22,6 +22,11 @@ const sequelize = new Sequelize(
   {
     host: dbConfig.host,
     dialect: dbConfig.dialect,
+    logging: dbConfig.logging,
+    pool: dbConfig.pool,
+    // Performance optimizations for memory-constrained environment
+    benchmark: false,
+    isolationLevel: 'READ_COMMITTED'
   } as Options
 );
 

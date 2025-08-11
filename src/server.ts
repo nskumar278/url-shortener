@@ -4,6 +4,7 @@ import { ServerConfig } from '@interfaces/server.interface';
 import env from '@configs/env';
 import logger from '@configs/logger';
 import ClickSyncService from '@services/clickSync.service';
+import ConnectionPoolService from '@services/connectionPool.service';
 
 const server = createServer(app);
 
@@ -17,8 +18,9 @@ const config: ServerConfig = {
 const gracefulShutdown = (signal: string) => {
     logger.warn(`Received ${signal}. Starting graceful shutdown...`);
 
-    // Stop click sync service
+    // Stop monitoring services
     ClickSyncService.getInstance().stop();
+    ConnectionPoolService.stopMonitoring();
 
     server.close((err?: Error) => {
         if (err) {
@@ -84,6 +86,10 @@ server.on('listening', (): void => {
     logger.info(`🚀 Server is running at http://${config.host}:${config.port}`);
     logger.info(`📦 Environment: ${config.nodeEnv}`);
     logger.info(`📝 Log Level: ${env.getLogLevel()}`);
+    
+    // Start connection pool monitoring
+    ConnectionPoolService.startMonitoring();
+    logger.info('📊 Database connection pool monitoring started');
     
     // Start click sync service only if enabled (prevents multiple instances from syncing)
     if (env.ENABLE_CLICK_SYNC) {

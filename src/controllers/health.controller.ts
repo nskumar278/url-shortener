@@ -5,6 +5,7 @@ import { ApiResponse } from '@interfaces/api.interface';
 import db from '@models/db';
 import cacheService from '@services/cache.service';
 import ClickSyncService from '@services/clickSync.service';
+import ConnectionPoolService from '@services/connectionPool.service';
 import env from '@configs/env';
 
 class HealthController {
@@ -35,6 +36,9 @@ class HealthController {
         // Check click sync service status
         const clickSyncStatus = ClickSyncService.getInstance().getStatus();
 
+        // Get connection pool stats
+        const connectionPoolStats = ConnectionPoolService.getPoolStats();
+
         // Get pending click counts in Redis
         let pendingClicks = 0;
         try {
@@ -56,7 +60,15 @@ class HealthController {
                 uptime: Math.floor(process.uptime()),
                 database: {
                     status: databaseStatus,
-                    error: databaseError
+                    error: databaseError,
+                    connectionPool: connectionPoolStats ? {
+                        total: connectionPoolStats.total,
+                        idle: connectionPoolStats.idle,
+                        used: connectionPoolStats.used,
+                        waiting: connectionPoolStats.waiting,
+                        utilization: connectionPoolStats.max > 0 ? 
+                            `${((connectionPoolStats.used / connectionPoolStats.max) * 100).toFixed(1)}%` : '0%'
+                    } : null
                 },
                 cache: {
                     status: cacheStatus,

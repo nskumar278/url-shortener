@@ -94,6 +94,20 @@ const activeConnections = new client.Gauge({
     registers: [register]
 });
 
+// Connection Pool Metrics
+const connectionPoolSize = new client.Gauge({
+    name: 'url_shortener_connection_pool_size',
+    help: 'Current size of database connection pool',
+    labelNames: ['status'], // status: total/idle/used/waiting
+    registers: [register]
+});
+
+const connectionPoolUtilization = new client.Gauge({
+    name: 'url_shortener_connection_pool_utilization_ratio',
+    help: 'Database connection pool utilization ratio (0-1)',
+    registers: [register]
+});
+
 // Click Sync Metrics
 const clickSyncOperations = new client.Counter({
     name: 'url_shortener_click_sync_operations_total',
@@ -207,6 +221,27 @@ class MetricsService {
     // Connection Metrics
     public static setActiveConnections(type: 'database' | 'cache', count: number): void {
         activeConnections.set({ type }, count);
+    }
+
+    // Connection Pool Metrics
+    public static updateConnectionPoolMetrics(poolStats: {
+        total: number;
+        idle: number;
+        used: number;
+        waiting: number;
+        max: number;
+    }): void {
+        // Record individual pool metrics
+        connectionPoolSize.set({ status: 'total' }, poolStats.total);
+        connectionPoolSize.set({ status: 'idle' }, poolStats.idle);
+        connectionPoolSize.set({ status: 'used' }, poolStats.used);
+        connectionPoolSize.set({ status: 'waiting' }, poolStats.waiting);
+        
+        // Calculate and record utilization ratio
+        const utilization = poolStats.max > 0 ? poolStats.used / poolStats.max : 0;
+        connectionPoolUtilization.set(utilization);
+        
+        logger.debug('Connection pool metrics updated', poolStats);
     }
 
     // Click Sync Metrics
