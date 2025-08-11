@@ -17,15 +17,6 @@ docker compose down --remove-orphans
 docker compose build --no-cache
 docker compose up -d mysql redis
 
-echo "⏳ Waiting for database to be ready..."
-echo "   Checking MySQL..."
-until docker compose exec mysql mysqladmin ping -h"localhost" -u"url_shortener_user" -p"pass" --silent 2>/dev/null; do
-    echo "   MySQL not ready yet, waiting..."
-    sleep 3
-done
-echo "   ✅ MySQL is ready!"
-
-
 # Run migrations
 echo "🔄 Running database migrations..."
 docker compose --profile migration run --rm migrate

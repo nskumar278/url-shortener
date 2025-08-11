@@ -51,6 +51,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: redispass123
       REDIS_DB: 0
+      CACHE_TTL: 3600
       METRICS_ENABLED: true
       METRICS_PORT: 9090
     

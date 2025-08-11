@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import env from '@configs/env';
 import logger from '@configs/logger';
+import MetricsService from '@services/metrics.service';
 
 interface CacheOptions {
     ttl?: number | undefined;
@@ -82,33 +83,54 @@ class CacheService {
     }
 
     public async get(key: string): Promise<string | null> {
+        const startTime = Date.now();
         try {
             if (!this.isConnected) {
                 logger.warn('Redis not connected, cache miss for key:', key);
+                MetricsService.recordCacheMiss('get', (Date.now() - startTime) / 1000);
                 return null;
             }
+            
             const result = await this.redisClient.get(key);
-            logger.info('Cache hit for short ID', { shortId: key, originalUrl: result });
+            const duration = (Date.now() - startTime) / 1000;
+            
+            if (result !== null) {
+                logger.debug('Cache hit for key', { key, hasValue: true });
+                MetricsService.recordCacheHit('get', duration);
+            } else {
+                logger.debug('Cache miss for key', { key });
+                MetricsService.recordCacheMiss('get', duration);
+            }
+            
             return result;
         } catch (error) {
+            const duration = (Date.now() - startTime) / 1000;
             logger.error('Error getting key from Redis:', error);
+            MetricsService.recordCacheError('get', duration);
             return null;
         }
     }
 
     public async set(key: string, value: string, options: CacheOptions = {}): Promise<void> {
+        const startTime = Date.now();
         try {
             if (!this.isConnected) {
                 logger.warn('Redis not connected, cannot set key:', key);
+                MetricsService.recordCacheError('set', (Date.now() - startTime) / 1000);
                 return;
             }
             
             const ttl = options.ttl || env.CACHE_TTL;
             await this.redisClient.setex(key, ttl, value);
-            logger.info('Cache set operation', { key, value, ttl });
+            const duration = (Date.now() - startTime) / 1000;
+            
+            logger.debug('Cache set operation', { key, ttl, duration });
+            MetricsService.recordCacheSet(duration);
             return;
         } catch (error) {
+            const duration = (Date.now() - startTime) / 1000;
             logger.error('Error setting key in Redis:', error);
+            MetricsService.recordCacheError('set', duration);
             return;
         }
     }

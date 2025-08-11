@@ -3,6 +3,7 @@ import db from "@models/db";
 import env from "@configs/env";
 import { createShortId } from '@utils/shortId';
 import cacheService from "@services/cache.service";
+import MetricsService from "@services/metrics.service";
 
 class UrlService {
     private static MAX_SHORT_ID_ATTEMPTS = 3;
@@ -14,10 +15,12 @@ class UrlService {
             const { originalUrl } = urlData;
 
             // Check if URL already exists
+            const startDbTime = Date.now();
             const existingUrl = await db.Url.findOne({
                 where: { originalUrl },
                 attributes: ['shortUrlId', 'originalUrl', 'createdAt', 'updatedAt']
             });
+            MetricsService.recordDatabaseOperation('select', (Date.now() - startDbTime) / 1000);
 
             if (existingUrl) {
                 logger.info('Short URL already exists', { existingUrl });
@@ -30,11 +33,14 @@ class UrlService {
 
             const shortUrlId = await UrlService.createUniqueShortId();
 
+            const startCreateTime = Date.now();
             const newUrl = await db.Url.create({
                 originalUrl: originalUrl,
                 shortUrlId: shortUrlId,
                 clickCount: 0
             });
+            MetricsService.recordDatabaseOperation('insert', (Date.now() - startCreateTime) / 1000);
+            MetricsService.recordUrlCreated();
 
             logger.info('Short URL created successfully', {
                 shortUrlId: newUrl.shortUrlId,
@@ -55,12 +61,15 @@ class UrlService {
     }
 
     public static async getOriginalUrl(shortId: string): Promise<string | null> {
+        const startTime = Date.now();
         try {
             logger.info('Retrieving original URL for short ID', { shortId });
 
             const cachedUrl = await cacheService.getShortUrl(shortId);
 
             if (cachedUrl) {
+                const duration = (Date.now() - startTime) / 1000;
+                MetricsService.recordRedirect('cache', duration);
                 UrlService.incrementClickCount(shortId)
                     .catch(err => {
                         logger.error('Error incrementing click count for cached URL', { error: err, shortId });
@@ -68,15 +77,20 @@ class UrlService {
                 return cachedUrl;
             }
 
+            const startDbTime = Date.now();
             const urlRecord = await db.Url.findOne({
                 where: { shortUrlId: shortId },
                 attributes: ['originalUrl', 'clickCount']
             });
+            MetricsService.recordDatabaseOperation('select', (Date.now() - startDbTime) / 1000);
 
             if (!urlRecord) {
                 logger.warn('Short URL not found', { shortId });
                 return null;
             }
+
+            const duration = (Date.now() - startTime) / 1000;
+            MetricsService.recordRedirect('database', duration);
 
             cacheService.cacheShortUrl(shortId, urlRecord.originalUrl)
                 .catch(err => {

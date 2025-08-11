@@ -10,7 +10,7 @@ client.collectDefaultMetrics({
     prefix: 'url_shortener_',
 });
 
-// Custom metrics
+// HTTP Request Metrics
 const httpRequestTotal = new client.Counter({
     name: 'url_shortener_http_requests_total',
     help: 'Total number of HTTP requests',
@@ -22,21 +22,174 @@ const httpRequestDuration = new client.Histogram({
     name: 'url_shortener_http_request_duration_seconds',
     help: 'Duration of HTTP requests in seconds',
     labelNames: ['method', 'route', 'status_code'],
-    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
+    buckets: [0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5],
+    registers: [register]
+});
+
+// Cache Metrics
+const cacheOperations = new client.Counter({
+    name: 'url_shortener_cache_operations_total',
+    help: 'Total number of cache operations',
+    labelNames: ['operation', 'result'], // operation: get/set/delete, result: hit/miss/success/error
+    registers: [register]
+});
+
+const cacheHitRatio = new client.Gauge({
+    name: 'url_shortener_cache_hit_ratio',
+    help: 'Cache hit ratio (percentage)',
+    registers: [register]
+});
+
+const cacheOperationDuration = new client.Histogram({
+    name: 'url_shortener_cache_operation_duration_seconds',
+    help: 'Duration of cache operations in seconds',
+    labelNames: ['operation'],
+    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+    registers: [register]
+});
+
+// URL Shortener Business Metrics
+const urlsCreated = new client.Counter({
+    name: 'url_shortener_urls_created_total',
+    help: 'Total number of URLs created',
+    registers: [register]
+});
+
+const urlRedirects = new client.Counter({
+    name: 'url_shortener_redirects_total',
+    help: 'Total number of URL redirects',
+    labelNames: ['source'], // source: cache/database
+    registers: [register]
+});
+
+const redirectLatency = new client.Histogram({
+    name: 'url_shortener_redirect_duration_seconds',
+    help: 'Time taken for URL redirect operations',
+    labelNames: ['source'],
+    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5],
+    registers: [register]
+});
+
+// Database Metrics
+const databaseOperations = new client.Counter({
+    name: 'url_shortener_database_operations_total',
+    help: 'Total number of database operations',
+    labelNames: ['operation'], // operation: select/insert/update/delete
+    registers: [register]
+});
+
+const databaseOperationDuration = new client.Histogram({
+    name: 'url_shortener_database_operation_duration_seconds',
+    help: 'Duration of database operations in seconds',
+    labelNames: ['operation'],
+    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2],
+    registers: [register]
+});
+
+// Active connections
+const activeConnections = new client.Gauge({
+    name: 'url_shortener_active_connections',
+    help: 'Number of active connections',
+    labelNames: ['type'], // type: database/cache
     registers: [register]
 });
 
 class MetricsService {
-    // Record an HTTP request
+    private static cacheHits = 0;
+    private static cacheMisses = 0;
+
+    // HTTP Request Metrics
     public static recordHttpRequest(method: string, route: string, status: number, duration: number): void {
         httpRequestTotal.inc({ method, route, status_code: status });
         httpRequestDuration.observe({ method, route, status_code: status }, duration);
-        logger.info(`HTTP ${method} ${route} ${status} - ${duration}s`);
+        logger.debug(`HTTP ${method} ${route} ${status} - ${duration}s`);
+    }
+
+    // Cache Metrics
+    public static recordCacheHit(operation: string = 'get', duration?: number): void {
+        this.cacheHits++;
+        cacheOperations.inc({ operation, result: 'hit' });
+        if (duration !== undefined) {
+            cacheOperationDuration.observe({ operation }, duration);
+        }
+        this.updateCacheHitRatio();
+        logger.debug('Cache hit recorded', { operation, duration });
+    }
+
+    public static recordCacheMiss(operation: string = 'get', duration?: number): void {
+        this.cacheMisses++;
+        cacheOperations.inc({ operation, result: 'miss' });
+        if (duration !== undefined) {
+            cacheOperationDuration.observe({ operation }, duration);
+        }
+        this.updateCacheHitRatio();
+        logger.debug('Cache miss recorded', { operation, duration });
+    }
+
+    public static recordCacheSet(duration?: number): void {
+        cacheOperations.inc({ operation: 'set', result: 'success' });
+        if (duration !== undefined) {
+            cacheOperationDuration.observe({ operation: 'set' }, duration);
+        }
+        logger.debug('Cache set recorded', { duration });
+    }
+
+    public static recordCacheError(operation: string, duration?: number): void {
+        cacheOperations.inc({ operation, result: 'error' });
+        if (duration !== undefined) {
+            cacheOperationDuration.observe({ operation }, duration);
+        }
+        logger.debug('Cache error recorded', { operation, duration });
+    }
+
+    private static updateCacheHitRatio(): void {
+        const total = this.cacheHits + this.cacheMisses;
+        if (total > 0) {
+            const ratio = (this.cacheHits / total) * 100;
+            cacheHitRatio.set(ratio);
+        }
+    }
+
+    // URL Business Metrics
+    public static recordUrlCreated(): void {
+        urlsCreated.inc();
+        logger.debug('URL creation recorded');
+    }
+
+    public static recordRedirect(source: 'cache' | 'database', duration: number): void {
+        urlRedirects.inc({ source });
+        redirectLatency.observe({ source }, duration);
+        logger.debug('Redirect recorded', { source, duration });
+    }
+
+    // Database Metrics
+    public static recordDatabaseOperation(operation: string, duration: number): void {
+        databaseOperations.inc({ operation });
+        databaseOperationDuration.observe({ operation }, duration);
+        logger.debug('Database operation recorded', { operation, duration });
+    }
+
+    // Connection Metrics
+    public static setActiveConnections(type: 'database' | 'cache', count: number): void {
+        activeConnections.set({ type }, count);
+    }
+
+    // Get current cache hit ratio
+    public static getCacheHitRatio(): number {
+        const total = this.cacheHits + this.cacheMisses;
+        return total > 0 ? (this.cacheHits / total) * 100 : 0;
     }
 
     // Get metrics for Prometheus scraping
     public static async getMetrics(): Promise<string> {
         return register.metrics();
+    }
+
+    // Reset cache counters (useful for testing)
+    public static resetCacheCounters(): void {
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
+        cacheHitRatio.set(0);
     }
 }
 
