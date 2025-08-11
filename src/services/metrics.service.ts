@@ -143,6 +143,28 @@ const clickSyncLag = new client.Gauge({
     registers: [register]
 });
 
+// Circuit Breaker Metrics
+const circuitBreakerState = new client.Gauge({
+    name: 'url_shortener_circuit_breaker_state',
+    help: 'Circuit breaker state (0=CLOSED, 1=HALF_OPEN, 2=OPEN)',
+    labelNames: ['name'],
+    registers: [register]
+});
+
+const circuitBreakerFailures = new client.Gauge({
+    name: 'url_shortener_circuit_breaker_failures',
+    help: 'Number of failures tracked by circuit breaker',
+    labelNames: ['name'],
+    registers: [register]
+});
+
+const circuitBreakerOpenEvents = new client.Counter({
+    name: 'url_shortener_circuit_breaker_open_events_total',
+    help: 'Total number of times circuit breaker has opened',
+    labelNames: ['name'],
+    registers: [register]
+});
+
 class MetricsService {
     private static cacheHits = 0;
     private static cacheMisses = 0;
@@ -263,6 +285,23 @@ class MetricsService {
 
     public static updateClickSyncLag(): void {
         clickSyncLag.setToCurrentTime();
+    }
+
+    // Circuit Breaker Metrics
+    public static recordCircuitBreakerState(name: string, state: string): void {
+        const stateValue = state === 'CLOSED' ? 0 : state === 'HALF_OPEN' ? 1 : 2;
+        circuitBreakerState.set({ name }, stateValue);
+        logger.debug('Circuit breaker state recorded', { name, state, stateValue });
+    }
+
+    public static recordCircuitBreakerFailures(name: string, failures: number): void {
+        circuitBreakerFailures.set({ name }, failures);
+        logger.debug('Circuit breaker failures recorded', { name, failures });
+    }
+
+    public static recordCircuitBreakerOpenEvents(name: string): void {
+        circuitBreakerOpenEvents.inc({ name });
+        logger.warn('Circuit breaker opened', { name });
     }
 
     // Get current cache hit ratio

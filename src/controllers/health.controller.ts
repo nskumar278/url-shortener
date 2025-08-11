@@ -6,6 +6,7 @@ import db from '@models/db';
 import cacheService from '@services/cache.service';
 import ClickSyncService from '@services/clickSync.service';
 import ConnectionPoolService from '@services/connectionPool.service';
+import circuitBreakerManager from '@services/circuitBreaker.service';
 import env from '@configs/env';
 
 class HealthController {
@@ -48,6 +49,9 @@ class HealthController {
             logger.error('Error getting pending click counts', { error });
         }
 
+        // Get circuit breaker status
+        const circuitBreakerStatus = circuitBreakerManager.getAllStats();
+
         const isHealthy = databaseStatus === 'connected' && cacheStatus === 'connected';
         const status = isHealthy ? 'healthy' : 'degraded';
 
@@ -79,7 +83,8 @@ class HealthController {
                     isRunning: clickSyncStatus.isRunning,
                     config: env.ENABLE_CLICK_SYNC ? clickSyncStatus.options : null,
                     pendingClicks
-                }
+                },
+                circuitBreakers: circuitBreakerStatus
             },
             timestamp: new Date().toISOString()
         };

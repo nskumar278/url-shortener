@@ -26,7 +26,7 @@ const sequelize = new Sequelize(
     pool: dbConfig.pool,
     // Performance optimizations for memory-constrained environment
     benchmark: false,
-    isolationLevel: 'READ_COMMITTED'
+    isolationLevel: 'READ COMMITTED'
   } as Options
 );
 

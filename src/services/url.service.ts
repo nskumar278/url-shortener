@@ -4,6 +4,7 @@ import env from "@configs/env";
 import { createShortId } from '@utils/shortId';
 import cacheService from "@services/cache.service";
 import MetricsService from "@services/metrics.service";
+import ResilientDatabaseService from "@services/resilientDatabase.service";
 
 class UrlService {
     private static MAX_SHORT_ID_ATTEMPTS = 3;
@@ -14,43 +15,41 @@ class UrlService {
 
             const { originalUrl } = urlData;
 
-            // Check if URL already exists
-            const startDbTime = Date.now();
-            const existingUrl = await db.Url.findOne({
-                where: { originalUrl },
-                attributes: ['shortUrlId', 'originalUrl', 'createdAt', 'updatedAt']
-            });
-            MetricsService.recordDatabaseOperation('select', (Date.now() - startDbTime) / 1000);
-
+            // Check if URL already exists using resilient service
+            const existingUrl = await ResilientDatabaseService.urlExists(originalUrl);
+            
             if (existingUrl) {
-                logger.info('Short URL already exists', { existingUrl });
-                cacheService.cacheShortUrl(existingUrl.shortUrlId, existingUrl.originalUrl)
-                    .catch(err => {
-                        logger.error('Error caching existing short URL', { error: err, existingUrl });
-                    });
-                return UrlService.parseResponseData(existingUrl);
+                // Try to get existing URL data
+                const existingData = await db.Url.findOne({
+                    where: { originalUrl },
+                    attributes: ['shortUrlId', 'originalUrl', 'createdAt', 'updatedAt']
+                });
+                
+                if (existingData) {
+                    logger.info('Short URL already exists', { existingData });
+                    cacheService.cacheShortUrl(existingData.shortUrlId, existingData.originalUrl)
+                        .catch(err => {
+                            logger.error('Error caching existing short URL', { error: err, existingData });
+                        });
+                    return UrlService.parseResponseData(existingData);
+                }
             }
 
             const shortUrlId = await UrlService.createUniqueShortId();
 
-            const startCreateTime = Date.now();
-            const newUrl = await db.Url.create({
+            // Use resilient database service for creation
+            const newUrl = await ResilientDatabaseService.createUrl({
                 originalUrl: originalUrl,
-                shortUrlId: shortUrlId,
-                clickCount: 0
+                shortUrlId: shortUrlId
             });
-            MetricsService.recordDatabaseOperation('insert', (Date.now() - startCreateTime) / 1000);
+
             MetricsService.recordUrlCreated();
 
             logger.info('Short URL created successfully', {
                 shortUrlId: newUrl.shortUrlId,
                 originalUrl: newUrl.originalUrl,
+                source: newUrl.source
             });
-
-            cacheService.cacheShortUrl(newUrl.shortUrlId, newUrl.originalUrl)
-                .catch(err => {
-                    logger.error('Error caching new short URL', { error: err, newUrl });
-                });
 
             return UrlService.parseResponseData(newUrl);
 
@@ -65,40 +64,16 @@ class UrlService {
         try {
             logger.info('Retrieving original URL for short ID', { shortId });
 
-            const cachedUrl = await cacheService.getShortUrl(shortId);
+            // Use resilient database service for retrieval
+            const urlResult = await ResilientDatabaseService.getUrl(shortId);
 
-            if (cachedUrl) {
-                const duration = (Date.now() - startTime) / 1000;
-                MetricsService.recordRedirect('cache', duration);
-                
-                // Fast Redis-based click counting (non-blocking)
-                cacheService.incrementUrlClicks(shortId)
-                    .catch(err => {
-                        logger.error('Error incrementing click count in Redis for cached URL', { error: err, shortId });
-                    });
-                
-                return cachedUrl;
-            }
-
-            const startDbTime = Date.now();
-            const urlRecord = await db.Url.findOne({
-                where: { shortUrlId: shortId },
-                attributes: ['originalUrl', 'clickCount']
-            });
-            MetricsService.recordDatabaseOperation('select', (Date.now() - startDbTime) / 1000);
-
-            if (!urlRecord) {
+            if (!urlResult) {
                 logger.warn('Short URL not found', { shortId });
                 return null;
             }
 
             const duration = (Date.now() - startTime) / 1000;
-            MetricsService.recordRedirect('database', duration);
-
-            cacheService.cacheShortUrl(shortId, urlRecord.originalUrl)
-                .catch(err => {
-                    logger.error('Error caching original URL after DB fetch', { error: err, shortId });
-                });
+            MetricsService.recordRedirect(urlResult.source as 'cache' | 'database', duration);
 
             // Fast Redis-based click counting (non-blocking)
             cacheService.incrementUrlClicks(shortId)
@@ -106,45 +81,27 @@ class UrlService {
                     logger.error('Error incrementing click count in Redis', { error: err, shortId });
                 });
 
-            return urlRecord.originalUrl;
+            return urlResult.originalUrl;
         } catch (error) {
             logger.error('Error retrieving original URL', { error, shortId });
             throw error;
         }
     }
 
-    public static async getUrlStats(shortUrl: string): Promise<any> {
+    public static async getUrlStats(shortId: string): Promise<any> {
         try {
-            logger.info('Getting stats for short URL', { shortUrl });
-            const urlRecord = await db.Url.findOne({
-                where: { shortUrlId: shortUrl },
-                attributes: ['id', 'shortUrlId', 'originalUrl', 'clickCount', 'createdAt', 'updatedAt']
-            });
+            logger.info('Retrieving URL stats', { shortId });
 
-            if (!urlRecord) {
-                logger.warn('Short URL not found', { shortUrl });
+            // Use resilient database service for stats retrieval
+            const stats = await ResilientDatabaseService.getUrlStats(shortId);
+
+            if (!stats) {
                 return null;
             }
 
-            // Get pending click count from Redis
-            const pendingClicks = await cacheService.getUrlClickCount(shortUrl);
-            
-            // Combine database and Redis click counts for accurate stats
-            const totalClickCount = urlRecord.clickCount + pendingClicks;
-            
-            logger.debug('Click count calculation', {
-                shortUrl,
-                dbClickCount: urlRecord.clickCount,
-                pendingClicks,
-                totalClickCount
-            });
-
-            return UrlService.parseResponseData({
-                ...urlRecord.toJSON(),
-                clickCount: totalClickCount
-            });
+            return stats;
         } catch (error) {
-            logger.error('Error getting URL stats', { error, shortUrl });
+            logger.error('Error retrieving URL stats', { error, shortId });
             throw error;
         }
     }
