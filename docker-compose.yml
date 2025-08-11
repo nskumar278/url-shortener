@@ -1,5 +1,164 @@
 services:
+  # NGINX Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: url-shortener-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - url-shortener-app1
+      - url-shortener-app2
+      - url-shortener-app3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - url-shortener-network
 
+  # App Container 1
+  url-shortener-app1: &app-template
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: url-shortener:latest
+    container_name: url-shortener-app1
+    restart: unless-stopped
+    
+    volumes:
+      - app-logs:/app/logs
+    
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: ${LOG_DIR:-/app/logs}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      REQUEST_LIMIT: ${REQUEST_LIMIT:-100mb}
+      DB_USERNAME: url_shortener_user
+      DB_PASSWORD: pass
+      DB_NAME: url_shortener_db
+      DB_HOST: mysql
+      DB_DIALECT: mysql
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redispass123
+      REDIS_DB: 0
+      METRICS_ENABLED: true
+      METRICS_PORT: 9090
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Network
+    networks:
+      - url-shortener-network
+
+  # App Container 2
+  url-shortener-app2:
+    <<: *app-template
+    container_name: url-shortener-app2
+
+  # App Container 3
+  url-shortener-app3:
+    <<: *app-template
+    container_name: url-shortener-app3
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: url-shortener-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: url_shortener_db
+      MYSQL_USER: url_shortener_user
+      MYSQL_PASSWORD: pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "url_shortener_user", "-ppass"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    
+    networks:
+      - url-shortener-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: url-shortener-redis
+    command: redis-server --requirepass redispass123 --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    
+    volumes:
+      - redis-data:/data
+    
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispass123", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - url-shortener-network
+  
+  # Migration Service  
   migrate:
     build:
       context: .
@@ -19,89 +178,17 @@ services:
       - migration
     restart: "no"
 
-  url-shortener:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    image: url-shortener:latest
-    container_name: url-shortener-app
-    restart: unless-stopped
-  
-    ports:
-      - "3000:3000"
-
-    volumes:
-      - app-logs:/app/logs
-    
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      HOST: 0.0.0.0
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_DIR: ${LOG_DIR:-/app/logs}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      REQUEST_LIMIT: ${REQUEST_LIMIT:-100mb}
-      DB_USERNAME: url_shortener_user
-      DB_PASSWORD: pass
-      DB_NAME: url_shortener_db
-      DB_HOST: mysql
-      DB_DIALECT: mysql
-    
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    
-    # Security options
-    security_opt:
-      - no-new-privileges:true
-    
-    # Network
-    networks:
-      - url-shortener-network
-  
-  mysql:
-    image: mysql:8.0
-    container_name: url-shortener-db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: url_shortener_db
-      MYSQL_USER: url_shortener_user
-      MYSQL_PASSWORD: pass
-    ports:
-      - "3306:3306"
-    volumes:
-      - db-data:/var/lib/mysql
-    networks:
-      - url-shortener-network
-
-# ----------------------------------------
 # Networks
-# ----------------------------------------
 networks:
   url-shortener-network:
     driver: bridge
     name: url-shortener-network
 
-# ----------------------------------------
-# Volumes (for future use with databases)
-# ----------------------------------------
+# Volumes
 volumes:
   app-logs:
     driver: local
   db-data:
+    driver: local
+  redis-data:
     driver: local
