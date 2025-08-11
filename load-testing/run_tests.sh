@@ -67,7 +67,7 @@ run_load_test() {
     echo "Users: $users, Spawn Rate: $spawn_rate/s, Duration: ${duration}s"
     
     # Build locust command
-    local cmd="locust -f ./load-testing/locustfile.py --host=$APP_URL -u $users -r $spawn_rate -t ${duration}s --html=$REPORTS_DIR/${test_name}.html --csv=$REPORTS_DIR/${test_name} --headless"
+    local cmd="locust -f ./load-testing/locustfile.py --host=$APP_URL -u $users -r $spawn_rate -t ${duration}s --html=$REPORTS_DIR/${test_name}.html --csv=$REPORTS_DIR/${test_name}"
     
     if [ ! -z "$user_class" ]; then
         cmd="$cmd $user_class"
