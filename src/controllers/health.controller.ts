@@ -7,6 +7,7 @@ import cacheService from '@services/cache.service';
 import ClickSyncService from '@services/clickSync.service';
 import ConnectionPoolService from '@services/connectionPool.service';
 import circuitBreakerManager from '@services/circuitBreaker.service';
+import MemoryProfilerService from '@services/memoryProfiler.service';
 import env from '@configs/env';
 
 class HealthController {
@@ -91,6 +92,93 @@ class HealthController {
 
         const statusCode = isHealthy ? 200 : 503;
         res.status(statusCode).json(response);
+    });
+
+    public static memoryProfile = asyncErrorHandler(async (_req: Request, res: Response): Promise<void> => {
+        
+        const memoryProfiler = MemoryProfilerService.getInstance();
+        const profilingSummary = memoryProfiler.getProfilingSummary();
+        const componentMemory = memoryProfiler.getComponentMemoryUsage();
+
+        const response: ApiResponse = {
+            success: true,
+            message: 'Memory profile retrieved successfully',
+            data: {
+                summary: profilingSummary,
+                detailed: componentMemory,
+                actions: {
+                    forceGC: '/api/v1/memory/gc',
+                    heapSnapshot: '/api/v1/memory/snapshot',
+                    baseline: '/api/v1/memory/baseline'
+                }
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        const statusCode = profilingSummary.status === 'critical' ? 503 : 200;
+        res.status(statusCode).json(response);
+    });
+
+    public static forceGarbageCollection = asyncErrorHandler(async (_req: Request, res: Response): Promise<void> => {
+        
+        const memoryProfiler = MemoryProfilerService.getInstance();
+        const beforeMemory = memoryProfiler.getCurrentMemoryStats();
+        const gcPerformed = memoryProfiler.forceGarbageCollection();
+        const afterMemory = memoryProfiler.getCurrentMemoryStats();
+
+        const response: ApiResponse = {
+            success: gcPerformed,
+            message: gcPerformed ? 'Garbage collection performed' : 'Garbage collection not available',
+            data: {
+                gcPerformed,
+                beforeMemory: beforeMemory.formatted,
+                afterMemory: afterMemory.formatted,
+                memoryFreed: gcPerformed ? {
+                    rss: beforeMemory.rss - afterMemory.rss,
+                    heapUsed: beforeMemory.heapUsed - afterMemory.heapUsed
+                } : null
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(gcPerformed ? 200 : 503).json(response);
+    });
+
+    public static createMemoryBaseline = asyncErrorHandler(async (_req: Request, res: Response): Promise<void> => {
+        
+        const memoryProfiler = MemoryProfilerService.getInstance();
+        memoryProfiler.captureBaseline();
+        const currentStats = memoryProfiler.getCurrentMemoryStats();
+
+        const response: ApiResponse = {
+            success: true,
+            message: 'Memory baseline captured',
+            data: {
+                baseline: currentStats.formatted,
+                timestamp: new Date().toISOString()
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(200).json(response);
+    });
+
+    public static generateHeapSnapshot = asyncErrorHandler(async (_req: Request, res: Response): Promise<void> => {
+        
+        const memoryProfiler = MemoryProfilerService.getInstance();
+        const snapshotPath = memoryProfiler.generateHeapSnapshot();
+
+        const response: ApiResponse = {
+            success: !!snapshotPath,
+            message: snapshotPath ? 'Heap snapshot generated' : 'Heap snapshot generation failed',
+            data: {
+                snapshotPath,
+                note: snapshotPath ? 'Download the snapshot file for analysis' : 'Install heapdump module for snapshot generation'
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(snapshotPath ? 200 : 503).json(response);
     });
 }
 

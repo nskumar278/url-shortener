@@ -5,6 +5,7 @@ import env from '@configs/env';
 import logger from '@configs/logger';
 import ClickSyncService from '@services/clickSync.service';
 import ConnectionPoolService from '@services/connectionPool.service';
+import MemoryProfilerService from '@services/memoryProfiler.service';
 
 const server = createServer(app);
 
@@ -21,6 +22,7 @@ const gracefulShutdown = (signal: string) => {
     // Stop monitoring services
     ClickSyncService.getInstance().stop();
     ConnectionPoolService.stopMonitoring();
+    MemoryProfilerService.getInstance().stopMonitoring();
 
     server.close((err?: Error) => {
         if (err) {
@@ -90,6 +92,10 @@ server.on('listening', (): void => {
     // Start connection pool monitoring
     ConnectionPoolService.startMonitoring();
     logger.info('📊 Database connection pool monitoring started');
+    
+    // Start memory profiler monitoring
+    MemoryProfilerService.getInstance().startMonitoring();
+    logger.info('💾 Memory profiler monitoring started');
     
     // Start click sync service only if enabled (prevents multiple instances from syncing)
     if (env.ENABLE_CLICK_SYNC) {

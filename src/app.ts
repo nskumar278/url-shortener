@@ -10,6 +10,7 @@ import { metricsMiddleware, metricsEndpoint } from '@services/metrics.service';
 import { setupSwagger } from '@configs/swagger';
 import indexRouter from '@routes/index.route';
 import urlRouter from '@routes/v1/url.route';
+import memoryRouter from '@routes/v1/memory.route';
 
 const app = express();
 
@@ -43,6 +44,7 @@ setupSwagger(app);
 app.get('/metrics', metricsEndpoint);
 app.use('/', indexRouter);
 app.use('/api/v1/urls', urlRouter);
+app.use('/api/v1/memory', memoryRouter);
 
 // 404 Not Found handler
 app.use(notFoundHandler);

@@ -102,6 +102,14 @@ const connectionPoolSize = new client.Gauge({
     registers: [register]
 });
 
+// Memory Usage Metrics
+const memoryUsage = new client.Gauge({
+    name: 'url_shortener_memory_usage_bytes',
+    help: 'Process memory usage in bytes',
+    labelNames: ['type'],
+    registers: [register]
+});
+
 const connectionPoolUtilization = new client.Gauge({
     name: 'url_shortener_connection_pool_utilization_ratio',
     help: 'Database connection pool utilization ratio (0-1)',
@@ -308,6 +316,22 @@ class MetricsService {
     public static getCacheHitRatio(): number {
         const total = this.cacheHits + this.cacheMisses;
         return total > 0 ? (this.cacheHits / total) * 100 : 0;
+    }
+
+    // Memory Metrics
+    public static recordMemoryUsage(rss: number, heapUsed: number, heapTotal: number, external: number): void {
+        // Update memory usage gauges using the existing metric
+        memoryUsage.set({ type: 'rss' }, rss);
+        memoryUsage.set({ type: 'heap_used' }, heapUsed);
+        memoryUsage.set({ type: 'heap_total' }, heapTotal);
+        memoryUsage.set({ type: 'external' }, external);
+
+        logger.debug('Memory usage recorded', {
+            rss: Math.round(rss / 1024 / 1024) + 'MB',
+            heapUsed: Math.round(heapUsed / 1024 / 1024) + 'MB',
+            heapTotal: Math.round(heapTotal / 1024 / 1024) + 'MB',
+            external: Math.round(external / 1024 / 1024) + 'MB'
+        });
     }
 
     // Get metrics for Prometheus scraping
