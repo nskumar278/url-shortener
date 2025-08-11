@@ -41,6 +41,20 @@ sleep 15
 echo "🌐 Starting NGINX load balancer..."
 docker compose up -d nginx
 
+echo "📦 Building monitoring services..."
+docker compose build prometheus grafana
+
+echo "🚀 Starting monitoring services..."
+docker compose up -d prometheus grafana
+
+echo "⏳ Waiting for monitoring services to be ready..."
+sleep 10
+
+echo "✅ Monitoring services started!"
+echo "🔗 Monitoring URLs:"
+echo "   Prometheus: http://localhost:9090"
+echo "   Grafana: http://localhost:3001"
+
 echo "✅ Deployment complete!"
 echo ""
 echo "🔗 Service URLs:"

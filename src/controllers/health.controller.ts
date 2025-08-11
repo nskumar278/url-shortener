@@ -2,26 +2,78 @@ import { Request, Response } from 'express';
 import logger from '@configs/logger';
 import { asyncErrorHandler } from '@middlewares/errorHandler';
 import { ApiResponse } from '@interfaces/api.interface';
+import db from '@models/db';
+import cacheService from '@services/cache.service';
+import ClickSyncService from '@services/clickSync.service';
+import env from '@configs/env';
 
 class HealthController {
     public static healthCheck = asyncErrorHandler(async (_req: Request, res: Response): Promise<void> => {
-        logger.info('Health check accessed');
+
+        // Check database connectivity
+        let databaseStatus = 'disconnected';
+        let databaseError = null;
+        try {
+            await db.sequelize.authenticate();
+            databaseStatus = 'connected';
+        } catch (error) {
+            databaseError = error instanceof Error ? error.message : 'Unknown error';
+            logger.error('Database health check failed', { error });
+        }
+
+        // Check Redis connectivity
+        let cacheStatus = 'disconnected';
+        let cacheError = null;
+        try {
+            const isHealthy = await cacheService.healthCheck();
+            cacheStatus = isHealthy ? 'connected' : 'disconnected';
+        } catch (error) {
+            cacheError = error instanceof Error ? error.message : 'Unknown error';
+            logger.error('Cache health check failed', { error });
+        }
+
+        // Check click sync service status
+        const clickSyncStatus = ClickSyncService.getInstance().getStatus();
+
+        // Get pending click counts in Redis
+        let pendingClicks = 0;
+        try {
+            const clickKeys = await cacheService.getClickCountKeys();
+            pendingClicks = clickKeys.length;
+        } catch (error) {
+            logger.error('Error getting pending click counts', { error });
+        }
+
+        const isHealthy = databaseStatus === 'connected' && cacheStatus === 'connected';
+        const status = isHealthy ? 'healthy' : 'degraded';
 
         const response: ApiResponse = {
             success: true,
-            message: 'API is healthy',
+            message: `API is ${status}`,
             data: {
-                status: 'ok',
-                environment: process.env.NODE_ENV || 'development',
-                version: process.env.npm_package_version || '1.0.0',
-                database: 'connected', // Add actual DB health check here
-                cache: 'connected' // Add actual cache health check here
+                status,
+                version: '1.0.0',
+                uptime: Math.floor(process.uptime()),
+                database: {
+                    status: databaseStatus,
+                    error: databaseError
+                },
+                cache: {
+                    status: cacheStatus,
+                    error: cacheError
+                },
+                clickSync: {
+                    enabled: env.ENABLE_CLICK_SYNC,
+                    isRunning: clickSyncStatus.isRunning,
+                    config: env.ENABLE_CLICK_SYNC ? clickSyncStatus.options : null,
+                    pendingClicks
+                }
             },
-            uptime: Math.floor(process.uptime()),
             timestamp: new Date().toISOString()
         };
 
-        res.status(200).json(response);
+        const statusCode = isHealthy ? 200 : 503;
+        res.status(statusCode).json(response);
     });
 }
 

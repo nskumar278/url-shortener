@@ -91,6 +91,9 @@ class ClickSyncService {
 
             logger.info('Found click counts to sync', { count: clickKeys.length });
 
+            // Record pending click counts metric
+            MetricsService.setPendingClickCounts(clickKeys.length);
+
             // Process in batches to avoid overwhelming the database
             const batches = this.chunkArray(clickKeys, this.options.batchSize);
             let totalSynced = 0;
@@ -100,9 +103,11 @@ class ClickSyncService {
                 try {
                     const synced = await this.processBatch(batch);
                     totalSynced += synced;
+                    MetricsService.recordClickSyncBatchSize(batch.length);
                 } catch (error) {
                     totalErrors++;
                     logger.error('Error processing batch', { error, batchSize: batch.length });
+                    MetricsService.recordClickSyncOperation('batch_process', 'error');
                 }
             }
 
@@ -116,12 +121,18 @@ class ClickSyncService {
                 duration
             });
 
+            // Record successful sync metrics
+            MetricsService.recordClickSyncOperation('sync', 'success', duration);
+            MetricsService.updateClickSyncLag();
+            MetricsService.setPendingClickCounts(0); // Reset after successful sync
+
             // Record metrics
             MetricsService.recordDatabaseOperation('batch_update', duration);
 
         } catch (error) {
             const duration = (Date.now() - startTime) / 1000;
             logger.error('Error during click count sync', { error, duration });
+            MetricsService.recordClickSyncOperation('sync', 'error', duration);
             throw error;
         }
     }
@@ -169,6 +180,7 @@ class ClickSyncService {
                     duration
                 });
 
+                MetricsService.recordClickSyncOperation('batch_process', 'success', duration);
                 return updatedCount;
 
             } catch (error) {

@@ -94,6 +94,41 @@ const activeConnections = new client.Gauge({
     registers: [register]
 });
 
+// Click Sync Metrics
+const clickSyncOperations = new client.Counter({
+    name: 'url_shortener_click_sync_operations_total',
+    help: 'Total number of click sync operations',
+    labelNames: ['operation', 'status'], // operation: sync/batch_process, status: success/error
+    registers: [register]
+});
+
+const clickSyncDuration = new client.Histogram({
+    name: 'url_shortener_click_sync_duration_seconds',
+    help: 'Duration of click sync operations in seconds',
+    labelNames: ['operation'],
+    buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
+    registers: [register]
+});
+
+const pendingClickCounts = new client.Gauge({
+    name: 'url_shortener_pending_click_counts',
+    help: 'Number of pending click counts in Redis',
+    registers: [register]
+});
+
+const clickSyncBatchSize = new client.Histogram({
+    name: 'url_shortener_click_sync_batch_size',
+    help: 'Number of URLs processed in each sync batch',
+    buckets: [1, 5, 10, 25, 50, 100, 200, 500],
+    registers: [register]
+});
+
+const clickSyncLag = new client.Gauge({
+    name: 'url_shortener_click_sync_lag_seconds',
+    help: 'Time since last successful click sync',
+    registers: [register]
+});
+
 class MetricsService {
     private static cacheHits = 0;
     private static cacheMisses = 0;
@@ -172,6 +207,27 @@ class MetricsService {
     // Connection Metrics
     public static setActiveConnections(type: 'database' | 'cache', count: number): void {
         activeConnections.set({ type }, count);
+    }
+
+    // Click Sync Metrics
+    public static recordClickSyncOperation(operation: 'sync' | 'batch_process', status: 'success' | 'error', duration?: number): void {
+        clickSyncOperations.inc({ operation, status });
+        if (duration !== undefined) {
+            clickSyncDuration.observe({ operation }, duration);
+        }
+        logger.debug('Click sync operation recorded', { operation, status, duration });
+    }
+
+    public static setPendingClickCounts(count: number): void {
+        pendingClickCounts.set(count);
+    }
+
+    public static recordClickSyncBatchSize(size: number): void {
+        clickSyncBatchSize.observe(size);
+    }
+
+    public static updateClickSyncLag(): void {
+        clickSyncLag.setToCurrentTime();
     }
 
     // Get current cache hit ratio
